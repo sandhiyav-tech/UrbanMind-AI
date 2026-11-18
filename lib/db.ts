@@ -6,6 +6,7 @@ import path from 'path';
 import os from 'os';
 
 const CACHE_FILE = path.join(os.tmpdir(), 'urbanmind_issues_cache.json');
+const USERS_CACHE_FILE = path.join(os.tmpdir(), 'urbanmind_users_cache.json');
 
 function readCachedIssues(): Issue[] {
   try {
@@ -20,6 +21,22 @@ function readCachedIssues(): Issue[] {
 function writeCachedIssues(issues: Issue[]) {
   try {
     fs.writeFileSync(CACHE_FILE, JSON.stringify(issues), 'utf-8');
+  } catch {}
+}
+
+function readCachedUsers(): User[] {
+  try {
+    if (fs.existsSync(USERS_CACHE_FILE)) {
+      const content = fs.readFileSync(USERS_CACHE_FILE, 'utf-8');
+      return JSON.parse(content);
+    }
+  } catch {}
+  return [];
+}
+
+function writeCachedUsers(users: User[]) {
+  try {
+    fs.writeFileSync(USERS_CACHE_FILE, JSON.stringify(users), 'utf-8');
   } catch {}
 }
 
@@ -300,6 +317,12 @@ function getStore(): GlobalStore {
       globalThis.__urbanmind_store!.issues.set(issue.id, { ...issue });
     });
 
+    // Re-hydrate any users cached in temporary storage across warm serverless requests
+    const cachedUsers = readCachedUsers();
+    cachedUsers.forEach((u) => {
+      globalThis.__urbanmind_store!.users.set(u.email.toLowerCase(), { ...u });
+    });
+
     // Re-hydrate any issues cached in temporary storage across warm serverless requests
     const cached = readCachedIssues();
     cached.forEach((issue) => {
@@ -444,6 +467,7 @@ export async function createUser(user: User): Promise<SafeUser> {
 
   const store = getStore();
   store.users.set(cleanEmail, { ...user, email: cleanEmail });
+  writeCachedUsers(Array.from(store.users.values()));
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { password_hash, ...safe } = user;
