@@ -42,6 +42,7 @@ export default function ReviewPage() {
   const [editedSeverity, setEditedSeverity] = useState<number>(3);
   const [submittingAction, setSubmittingAction] = useState(false);
   const [actionSuccessMsg, setActionSuccessMsg] = useState<string | null>(null);
+  const [modalError, setModalError] = useState<string | null>(null);
 
   const fetchIssues = async () => {
     setLoading(true);
@@ -51,7 +52,19 @@ export default function ReviewPage() {
         throw new Error('Failed to retrieve issues list');
       }
       const data = await res.json();
-      setIssues(data.issues || []);
+      let serverIssues: Issue[] = data.issues || [];
+
+      // Merge with custom issues saved locally to survive serverless cold starts
+      try {
+        const local = JSON.parse(localStorage.getItem('urbanmind_custom_issues') || '[]');
+        if (Array.isArray(local) && local.length > 0) {
+          const serverIds = new Set(serverIssues.map((i) => i.id));
+          const missingLocal = local.filter((i) => !serverIds.has(i.id));
+          serverIssues = [...missingLocal, ...serverIssues];
+        }
+      } catch {}
+
+      setIssues(serverIssues);
     } catch (err: any) {
       setError(err.message || 'Error fetching review queue');
     } finally {
@@ -75,6 +88,7 @@ export default function ReviewPage() {
         : `Approved with adjusted priority parameters.`
     );
     setActionSuccessMsg(null);
+    setModalError(null);
   };
 
   const submitReview = async (e: React.FormEvent) => {
@@ -82,11 +96,13 @@ export default function ReviewPage() {
     if (!selectedIssue) return;
 
     if (!decisionNotes.trim()) {
-      alert('Please enter a comment explaining the authority decision.');
+      setModalError('Please enter a comment explaining the authority decision.');
       return;
     }
 
     setSubmittingAction(true);
+    setModalError(null);
+
     try {
       const res = await fetch(`/api/issues/${selectedIssue.id}/review`, {
         method: 'PATCH',
@@ -95,6 +111,7 @@ export default function ReviewPage() {
           action: actionType,
           decision_notes: decisionNotes.trim(),
           edited_severity: actionType === 'edit' ? editedSeverity : undefined,
+          issue_fallback: selectedIssue, // Resilience fallback for serverless lambda re-hydration
         }),
       });
 
@@ -108,13 +125,22 @@ export default function ReviewPage() {
         prev.map((i) => (i.id === selectedIssue.id ? { ...i, ...data.issue } : i))
       );
 
+      // Persist update in localStorage
+      try {
+        const local = JSON.parse(localStorage.getItem('urbanmind_custom_issues') || '[]');
+        const updatedLocal = local.map((i: any) =>
+          i.id === selectedIssue.id ? { ...i, ...data.issue } : i
+        );
+        localStorage.setItem('urbanmind_custom_issues', JSON.stringify(updatedLocal));
+      } catch {}
+
       setActionSuccessMsg(`Decision successfully logged for #${selectedIssue.id}`);
       setTimeout(() => {
         setSelectedIssue(null);
         setActionSuccessMsg(null);
       }, 1200);
     } catch (err: any) {
-      alert(err.message || 'Error executing review action');
+      setModalError(err.message || 'Error executing review action');
     } finally {
       setSubmittingAction(false);
     }
@@ -446,6 +472,13 @@ export default function ReviewPage() {
                 ✕
               </button>
             </div>
+
+            {modalError && (
+              <div className="p-3 rounded-lg bg-red-950/40 border border-red-900/60 text-red-300 text-xs flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-red-400" />
+                <span>{modalError}</span>
+              </div>
+            )}
 
             {actionSuccessMsg ? (
               <div className="p-4 rounded-xl bg-emerald-950/60 border border-emerald-900 text-emerald-300 text-center space-y-2">

@@ -208,6 +208,13 @@ export default function ReportPage() {
       }
 
       setSubmittedIssueId(data.issue.id);
+
+      // Save to localStorage for resilient survival across serverless lambdas
+      try {
+        const existingLocal = JSON.parse(localStorage.getItem('urbanmind_custom_issues') || '[]');
+        const updatedLocal = [data.issue, ...existingLocal.filter((i: any) => i.id !== data.issue.id)];
+        localStorage.setItem('urbanmind_custom_issues', JSON.stringify(updatedLocal));
+      } catch {}
     } catch {
       setError('Network error while saving report.');
     } finally {

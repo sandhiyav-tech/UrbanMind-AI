@@ -8,6 +8,7 @@ const ReviewActionSchema = z.object({
   decision_notes: z.string().min(2, 'A decision comment is required'),
   edited_severity: z.number().int().min(1).max(5).optional(),
   edited_actions: z.array(z.string()).optional(),
+  issue_fallback: z.any().optional(),
 });
 
 export async function PATCH(
@@ -29,11 +30,6 @@ export async function PATCH(
 
   try {
     const issueId = params.id;
-    const existing = await getIssueById(issueId);
-    if (!existing) {
-      return NextResponse.json({ error: 'Issue not found' }, { status: 404 });
-    }
-
     const body = await req.json();
     const parsed = ReviewActionSchema.safeParse(body);
 
@@ -44,7 +40,26 @@ export async function PATCH(
       );
     }
 
-    const { action, decision_notes, edited_severity, edited_actions } = parsed.data;
+    const { action, decision_notes, edited_severity, edited_actions, issue_fallback } = parsed.data;
+
+    let existing = await getIssueById(issueId);
+
+    // If issue is missing from current serverless lambda instance, re-hydrate from issue_fallback
+    if (!existing && issue_fallback) {
+      try {
+        const { createIssue } = await import('@/lib/db');
+        existing = await createIssue({
+          ...issue_fallback,
+          id: issueId,
+        });
+      } catch (err) {
+        console.warn('Could not re-hydrate fallback issue:', err);
+      }
+    }
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Issue not found' }, { status: 404 });
+    }
 
     let newStatus: 'approved' | 'edited' | 'rejected' = 'approved';
     if (action === 'reject') newStatus = 'rejected';

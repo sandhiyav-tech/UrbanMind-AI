@@ -1,6 +1,27 @@
 import { neon, NeonQueryFunction } from '@neondatabase/serverless';
 import { User, Issue, SafeUser } from './types';
 import bcrypt from 'bcryptjs';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+
+const CACHE_FILE = path.join(os.tmpdir(), 'urbanmind_issues_cache.json');
+
+function readCachedIssues(): Issue[] {
+  try {
+    if (fs.existsSync(CACHE_FILE)) {
+      const content = fs.readFileSync(CACHE_FILE, 'utf-8');
+      return JSON.parse(content);
+    }
+  } catch {}
+  return [];
+}
+
+function writeCachedIssues(issues: Issue[]) {
+  try {
+    fs.writeFileSync(CACHE_FILE, JSON.stringify(issues), 'utf-8');
+  } catch {}
+}
 
 // Pre-computed hash for 'Demo1234' with bcrypt cost 10
 const DEMO_PASSWORD_HASH = '$2a$10$bwQXLBnIsv5q1Bb9FWTWeetIBpgYtb2Ayx2p8sPsaIARJCh9SnxyO';
@@ -279,6 +300,12 @@ function getStore(): GlobalStore {
       globalThis.__urbanmind_store!.issues.set(issue.id, { ...issue });
     });
 
+    // Re-hydrate any issues cached in temporary storage across warm serverless requests
+    const cached = readCachedIssues();
+    cached.forEach((issue) => {
+      globalThis.__urbanmind_store!.issues.set(issue.id, { ...issue });
+    });
+
     globalThis.__urbanmind_store.initialized = true;
   }
 
@@ -524,6 +551,7 @@ export async function createIssue(issue: Issue): Promise<Issue> {
 
   const store = getStore();
   store.issues.set(issue.id, { ...issue });
+  writeCachedIssues(Array.from(store.issues.values()));
   return issue;
 }
 
@@ -554,6 +582,7 @@ export async function updateIssue(id: string, updates: Partial<Issue>): Promise<
 
   const store = getStore();
   store.issues.set(id, merged);
+  writeCachedIssues(Array.from(store.issues.values()));
   return merged;
 }
 

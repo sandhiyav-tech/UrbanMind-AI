@@ -34,7 +34,19 @@ export default function MyReportsPage() {
         throw new Error('Failed to load your reports');
       }
       const data = await res.json();
-      setIssues(data.issues || []);
+      let userIssues: Issue[] = data.issues || [];
+
+      // Merge with custom issues saved locally to survive serverless cold starts
+      try {
+        const local = JSON.parse(localStorage.getItem('urbanmind_custom_issues') || '[]');
+        if (Array.isArray(local) && local.length > 0) {
+          const serverIds = new Set(userIssues.map((i) => i.id));
+          const missingLocal = local.filter((i) => !serverIds.has(i.id));
+          userIssues = [...missingLocal, ...userIssues];
+        }
+      } catch {}
+
+      setIssues(userIssues);
     } catch (err: any) {
       setError(err.message || 'Error fetching reports');
     } finally {
