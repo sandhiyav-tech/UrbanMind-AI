@@ -66,6 +66,14 @@ export default function SignupPage() {
         return;
       }
 
+      if (data.account_backup) {
+        try {
+          const existing = JSON.parse(localStorage.getItem('urbanmind_saved_accounts') || '{}');
+          existing[email.trim().toLowerCase()] = data.account_backup;
+          localStorage.setItem('urbanmind_saved_accounts', JSON.stringify(existing));
+        } catch {}
+      }
+
       // Redirect based on role
       const target = role === 'authority' ? '/review' : '/';
       router.push(target);

@@ -7,6 +7,14 @@ import { enforceRateLimit } from '@/lib/session';
 const LoginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
+  account_backup: z.object({
+    id: z.string(),
+    name: z.string(),
+    email: z.string(),
+    role: z.enum(['citizen', 'authority']),
+    password_hash: z.string(),
+    created_at: z.string(),
+  }).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -26,10 +34,29 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
     }
 
-    const { email, password } = parsed.data;
+    const { email, password, account_backup } = parsed.data;
     const cleanEmail = email.trim().toLowerCase();
 
-    const user = await getUserByEmail(cleanEmail);
+    let user = await getUserByEmail(cleanEmail);
+
+    // If user is not found in this serverless container, re-hydrate from account_backup
+    if (!user && account_backup && account_backup.email.trim().toLowerCase() === cleanEmail) {
+      try {
+        const { createUser } = await import('@/lib/db');
+        user = {
+          id: account_backup.id,
+          name: account_backup.name,
+          email: cleanEmail,
+          password_hash: account_backup.password_hash,
+          role: account_backup.role,
+          created_at: account_backup.created_at,
+        };
+        await createUser(user);
+      } catch (err) {
+        console.warn('Could not re-hydrate user from backup:', err);
+      }
+    }
+
     if (!user) {
       return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
     }

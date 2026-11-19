@@ -83,7 +83,17 @@ export async function POST(req: NextRequest) {
     });
 
     const isProd = process.env.NODE_ENV === 'production';
-    const response = NextResponse.json({ user: safeUser }, { status: 201 });
+    const response = NextResponse.json({
+      user: safeUser,
+      account_backup: {
+        id: newUser.id,
+        name: newUser.name,
+        email: newUser.email,
+        role: newUser.role,
+        password_hash: passwordHash,
+        created_at: newUser.created_at,
+      },
+    }, { status: 201 });
 
     response.cookies.set({
       name: COOKIE_NAME,

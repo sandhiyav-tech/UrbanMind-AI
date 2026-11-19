@@ -1,8 +1,9 @@
 import bcrypt from 'bcryptjs';
 
-const hash = '$2a$10$w8.484xT6w7eNqGfZz4UeOHy9/39097q758sWq5mD/R5z550L135a';
-console.log('Compare with Demo1234:', bcrypt.compareSync('Demo1234', hash));
+const hash1 = '$2a$10$wRFVcXiXwgf4tBmejRZe/OaAdtreLMAKs8vNTZeOmogV5nD.ZEcc6';
+const hash2 = '$2a$10$zGVcvKX6RbhfdcNlwJydyOYK5LMzKbPk08J76Jo6pAYazoDs5XPJC';
+const hashDemo = '$2a$10$bwQXLBnIsv5q1Bb9FWTWeetIBpgYtb2Ayx2p8sPsaIARJCh9SnxyO';
 
-const newHash = bcrypt.hashSync('Demo1234', 10);
-console.log('Real hash of Demo1234:', newHash);
-console.log('Compare newHash:', bcrypt.compareSync('Demo1234', newHash));
+console.log('asdf1234 matches hash1:', bcrypt.compareSync('asdf1234', hash1));
+console.log('sand1234 matches hash2:', bcrypt.compareSync('sand1234', hash2));
+console.log('Demo1234 matches hashDemo:', bcrypt.compareSync('Demo1234', hashDemo));

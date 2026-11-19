@@ -44,7 +44,7 @@ export default function MyReportsPage() {
           const missingLocal = local.filter((i) => !serverIds.has(i.id));
           userIssues = [...missingLocal, ...userIssues];
         }
-      } catch {}
+      } catch { }
 
       setIssues(userIssues);
     } catch (err: any) {
