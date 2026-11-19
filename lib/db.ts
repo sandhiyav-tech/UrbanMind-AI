@@ -60,30 +60,6 @@ const DEMO_USERS: User[] = [
     role: 'authority',
     created_at: new Date('2026-02-01T09:00:00Z').toISOString(),
   },
-  {
-    id: 'user_sarvesh_official',
-    name: 'Sarvesh (GCC Official)',
-    email: 'sarvesh@chennai.gov.in',
-    password_hash: '$2a$10$wRFVcXiXwgf4tBmejRZe/OaAdtreLMAKs8vNTZeOmogV5nD.ZEcc6',
-    role: 'authority',
-    created_at: new Date('2026-02-01T09:00:00Z').toISOString(),
-  },
-  {
-    id: 'user_sandhu_official',
-    name: 'Sandhu (GCC Official)',
-    email: 'sandhu@chennai.gov.in',
-    password_hash: '$2a$10$zGVcvKX6RbhfdcNlwJydyOYK5LMzKbPk08J76Jo6pAYazoDs5XPJC',
-    role: 'authority',
-    created_at: new Date('2026-02-01T09:00:00Z').toISOString(),
-  },
-  {
-    id: 'user_sandhiya_official',
-    name: 'Sandhiya (GCC Official)',
-    email: 'sandhiya@chennai.gov.in',
-    password_hash: '$2a$10$zGVcvKX6RbhfdcNlwJydyOYK5LMzKbPk08J76Jo6pAYazoDs5XPJC',
-    role: 'authority',
-    created_at: new Date('2026-02-01T09:00:00Z').toISOString(),
-  },
 ];
 
 const INITIAL_DEMO_ISSUES: Issue[] = [

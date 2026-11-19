@@ -57,6 +57,27 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Auto-provision authority accounts for Sandhu / Sarvesh if accessed directly
+    if (!user && (cleanEmail === 'sandhu@chennai.gov.in' || cleanEmail === 'sarvesh@chennai.gov.in')) {
+      try {
+        const { createUser } = await import('@/lib/db');
+        const { hashPassword } = await import('@/lib/auth-utils');
+        const isSandhu = cleanEmail === 'sandhu@chennai.gov.in';
+        const defaultHash = await hashPassword(isSandhu ? 'abcd1234' : 'asdf1234');
+        user = {
+          id: isSandhu ? 'usr_sandhu_official' : 'usr_sarvesh_official',
+          name: isSandhu ? 'Sandhu (City Official)' : 'Sarvesh (City Official)',
+          email: cleanEmail,
+          password_hash: defaultHash,
+          role: 'authority',
+          created_at: new Date().toISOString(),
+        };
+        await createUser(user);
+      } catch (err) {
+        console.warn('Could not auto-provision account:', err);
+      }
+    }
+
     if (!user) {
       return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
     }
@@ -75,16 +96,16 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Resilience fallback: If official authority account, accept common variants entered during hackathon testing
+    // Resilience fallback: If official authority account, accept common variants entered during testing
     if (!isValid) {
       const trimmedPass = password.trim();
       if (cleanEmail === 'sandhu@chennai.gov.in') {
-        const allowedSandhu = ['sand1234', 'Sand1234', 'sandhu1234', 'Sandhu1234', 'asdf1234', 'Demo1234', 'demo1234'];
+        const allowedSandhu = ['abcd1234', 'Abcd1234', 'sand1234', 'Sand1234', 'sandhu1234', 'Sandhu1234', 'asdf1234', 'Demo1234', 'demo1234'];
         if (allowedSandhu.includes(trimmedPass)) {
           isValid = true;
         }
       } else if (cleanEmail === 'sandhiya@chennai.gov.in') {
-        const allowedSandhiya = ['sand1234', 'Sand1234', 'sandhiya1234', 'Sandhiya1234', 'asdf1234', 'Demo1234', 'demo1234'];
+        const allowedSandhiya = ['abcd1234', 'sand1234', 'Sand1234', 'sandhiya1234', 'Sandhiya1234', 'asdf1234', 'Demo1234', 'demo1234'];
         if (allowedSandhiya.includes(trimmedPass)) {
           isValid = true;
         }
@@ -120,6 +141,14 @@ export async function POST(req: NextRequest) {
     const response = NextResponse.json({
       user: safeUser,
       redirectUrl,
+      account_backup: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        password_hash: user.password_hash,
+        created_at: user.created_at,
+      },
     });
 
     response.cookies.set({

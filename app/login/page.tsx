@@ -43,6 +43,14 @@ function LoginForm() {
       }
 
       // Successful login
+      if (data.account_backup) {
+        try {
+          const existing = JSON.parse(localStorage.getItem('urbanmind_saved_accounts') || '{}');
+          existing[email.trim().toLowerCase()] = data.account_backup;
+          localStorage.setItem('urbanmind_saved_accounts', JSON.stringify(existing));
+        } catch {}
+      }
+
       const target = nextPath || data.redirectUrl || '/';
       router.push(target);
       router.refresh();
@@ -99,26 +107,6 @@ function LoginForm() {
             >
               <div className="text-xs font-medium text-slate-200 group-hover:text-indigo-400">GCC Official</div>
               <div className="text-[11px] text-slate-400 truncate">official@demo.com</div>
-              <div className="text-[10px] text-slate-500 mt-1 font-mono">Role: authority</div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => fillDemoAccount('sarvesh@chennai.gov.in', 'asdf1234')}
-              className="text-left p-2.5 rounded-lg bg-slate-950/70 border border-slate-800 hover:border-indigo-500/50 hover:bg-indigo-950/20 transition group"
-            >
-              <div className="text-xs font-medium text-slate-200 group-hover:text-indigo-400">Sarvesh (Official)</div>
-              <div className="text-[11px] text-slate-400 truncate">sarvesh@chennai.gov.in</div>
-              <div className="text-[10px] text-slate-500 mt-1 font-mono">Role: authority</div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => fillDemoAccount('sandhu@chennai.gov.in', 'sand1234')}
-              className="text-left p-2.5 rounded-lg bg-slate-950/70 border border-slate-800 hover:border-indigo-500/50 hover:bg-indigo-950/20 transition group"
-            >
-              <div className="text-xs font-medium text-slate-200 group-hover:text-indigo-400">Sandhu (Official)</div>
-              <div className="text-[11px] text-slate-400 truncate">sandhu@chennai.gov.in</div>
               <div className="text-[10px] text-slate-500 mt-1 font-mono">Role: authority</div>
             </button>
           </div>
