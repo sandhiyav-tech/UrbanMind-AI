@@ -76,6 +76,14 @@ const DEMO_USERS: User[] = [
     role: 'authority',
     created_at: new Date('2026-02-01T09:00:00Z').toISOString(),
   },
+  {
+    id: 'user_sandhiya_official',
+    name: 'Sandhiya (GCC Official)',
+    email: 'sandhiya@chennai.gov.in',
+    password_hash: '$2a$10$zGVcvKX6RbhfdcNlwJydyOYK5LMzKbPk08J76Jo6pAYazoDs5XPJC',
+    role: 'authority',
+    created_at: new Date('2026-02-01T09:00:00Z').toISOString(),
+  },
 ];
 
 const INITIAL_DEMO_ISSUES: Issue[] = [
@@ -323,11 +331,6 @@ function getStore(): GlobalStore {
   }
 
   if (!globalThis.__urbanmind_store.initialized) {
-    // Seed demo users
-    DEMO_USERS.forEach((u) => {
-      globalThis.__urbanmind_store!.users.set(u.email.toLowerCase(), { ...u });
-    });
-
     // Seed demo issues
     INITIAL_DEMO_ISSUES.forEach((issue) => {
       globalThis.__urbanmind_store!.issues.set(issue.id, { ...issue });
@@ -336,6 +339,11 @@ function getStore(): GlobalStore {
     // Re-hydrate any users cached in temporary storage across warm serverless requests
     const cachedUsers = readCachedUsers();
     cachedUsers.forEach((u) => {
+      globalThis.__urbanmind_store!.users.set(u.email.toLowerCase(), { ...u });
+    });
+
+    // Seed demo/official users (takes precedence so verified credentials cannot be overwritten by stale cache)
+    DEMO_USERS.forEach((u) => {
       globalThis.__urbanmind_store!.users.set(u.email.toLowerCase(), { ...u });
     });
 
