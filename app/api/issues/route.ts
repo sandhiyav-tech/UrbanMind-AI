@@ -32,19 +32,23 @@ const CreateIssueSchema = z.object({
   is_demo: z.boolean().optional(),
 });
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await getCurrentSession();
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized: Please log in' }, { status: 401 });
   }
 
+  const { searchParams } = new URL(req.url);
+  const mineOnly = searchParams.get('mine') === 'true';
+
   try {
-    if (session.role === 'authority') {
+    if (session.role === 'authority' && !mineOnly) {
+      // GCC Officials on /review board view all city-wide issues
       const allIssues = await getAllIssues();
       return NextResponse.json({ issues: allIssues });
     } else {
-      // Citizens can read only their own issues
-      const myIssues = await getIssuesByUserId(session.userId);
+      // Private user portal (/my-reports): strictly the user's OWN submitted reports
+      const myIssues = await getIssuesByUserId(session.userId, session.name);
       return NextResponse.json({ issues: myIssues });
     }
   } catch (err: any) {

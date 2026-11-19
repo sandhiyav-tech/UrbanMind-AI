@@ -33,7 +33,7 @@ export default function MyReportsPage() {
   const fetchMyReports = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/issues');
+      const res = await fetch('/api/issues?mine=true');
       if (!res.ok) {
         throw new Error('Failed to load your reports');
       }
@@ -45,7 +45,14 @@ export default function MyReportsPage() {
         const local = JSON.parse(localStorage.getItem('urbanmind_custom_issues') || '[]');
         if (Array.isArray(local) && local.length > 0) {
           const serverIds = new Set(userIssues.map((i) => i.id));
-          const missingLocal = local.filter((i) => !serverIds.has(i.id));
+          // Filter strictly for issues created by THIS specific user
+          const missingLocal = local.filter((i) => {
+            if (!user) return false;
+            const matchesId = i.user_id && i.user_id === user.id;
+            const matchesName = i.user_name && user.name && i.user_name.toLowerCase() === user.name.toLowerCase();
+            const matchesEmail = i.user_name && user.email && i.user_name.toLowerCase().includes(user.email.toLowerCase());
+            return (matchesId || matchesName || matchesEmail) && !serverIds.has(i.id);
+          });
           userIssues = [...missingLocal, ...userIssues];
         }
       } catch { }
@@ -60,7 +67,7 @@ export default function MyReportsPage() {
 
   useEffect(() => {
     fetchMyReports();
-  }, []);
+  }, [user?.id]);
 
   const handleDeleteReport = async (issueId: string) => {
     setDeletingId(issueId);

@@ -499,12 +499,16 @@ export async function getAllIssues(): Promise<Issue[]> {
   return issues.sort((a, b) => b.priority_score - a.priority_score || new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 }
 
-export async function getIssuesByUserId(userId: string): Promise<Issue[]> {
+export async function getIssuesByUserId(userId: string, userName?: string): Promise<Issue[]> {
   const sql = getPostgresClient();
   if (sql) {
     try {
       await ensurePostgresTables(sql);
-      const rows = (await sql`SELECT * FROM issues WHERE user_id = ${userId} ORDER BY created_at DESC;`) as any[];
+      const rows = (await sql`
+        SELECT * FROM issues 
+        WHERE user_id = ${userId} OR (${userName || ''} != '' AND user_name = ${userName || ''})
+        ORDER BY created_at DESC;
+      `) as any[];
       if (rows && rows.length > 0) {
         return rows.map((r) => ({
           ...r,
@@ -520,7 +524,7 @@ export async function getIssuesByUserId(userId: string): Promise<Issue[]> {
 
   const store = getStore();
   return Array.from(store.issues.values())
-    .filter((i) => i.user_id === userId)
+    .filter((i) => i.user_id === userId || (userName && i.user_name && i.user_name.toLowerCase() === userName.toLowerCase()))
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 }
 
