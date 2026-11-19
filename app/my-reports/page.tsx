@@ -16,7 +16,8 @@ import {
   Shield,
   Layers,
   FileText,
-  AlertTriangle
+  AlertTriangle,
+  Trash2
 } from 'lucide-react';
 
 export default function MyReportsPage() {
@@ -25,6 +26,9 @@ export default function MyReportsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteIssue, setConfirmDeleteIssue] = useState<Issue | null>(null);
+  const [deleteSuccessMsg, setDeleteSuccessMsg] = useState<string | null>(null);
 
   const fetchMyReports = async () => {
     setLoading(true);
@@ -57,6 +61,42 @@ export default function MyReportsPage() {
   useEffect(() => {
     fetchMyReports();
   }, []);
+
+  const handleDeleteReport = async (issueId: string) => {
+    setDeletingId(issueId);
+    try {
+      const res = await fetch(`/api/issues/${issueId}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to delete report');
+      }
+
+      // Remove from active state
+      setIssues((prev) => prev.filter((i) => i.id !== issueId));
+
+      // Remove from client localStorage cache
+      try {
+        const local = JSON.parse(localStorage.getItem('urbanmind_custom_issues') || '[]');
+        if (Array.isArray(local)) {
+          const updated = local.filter((i: any) => i.id !== issueId);
+          localStorage.setItem('urbanmind_custom_issues', JSON.stringify(updated));
+        }
+      } catch {}
+
+      setDeleteSuccessMsg(`Report #${issueId} was successfully removed.`);
+      setConfirmDeleteIssue(null);
+      if (selectedIssue?.id === issueId) {
+        setSelectedIssue(null);
+      }
+      setTimeout(() => setDeleteSuccessMsg(null), 4000);
+    } catch (err: any) {
+      alert(err.message || 'Error deleting report');
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const getStatusBadge = (status: IssueStatus) => {
     switch (status) {
@@ -114,6 +154,22 @@ export default function MyReportsPage() {
           </Link>
         </div>
       </div>
+
+      {/* Delete Success Notification */}
+      {deleteSuccessMsg && (
+        <div className="p-3.5 rounded-xl bg-emerald-950/40 border border-emerald-500/40 text-emerald-300 text-xs flex items-center justify-between shadow-lg animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span className="font-medium">{deleteSuccessMsg}</span>
+          </div>
+          <button
+            onClick={() => setDeleteSuccessMsg(null)}
+            className="text-emerald-400 hover:text-white text-xs px-2"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Stats row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -226,19 +282,30 @@ export default function MyReportsPage() {
                   )}
                 </div>
 
-                {/* Inspect Action */}
-                <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between">
-                  <span className="text-[10px] text-slate-500 font-mono">
+                {/* Card Actions */}
+                <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between gap-2">
+                  <span className="text-[10px] text-slate-500 font-mono truncate">
                     Formula: {issue.priority_breakdown?.formula ? 'Calibrated' : 'Pending'}
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedIssue(issue)}
-                    className="flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300 font-medium"
-                  >
-                    <span>View Agent Findings</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedIssue(issue)}
+                      className="flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300 font-medium px-2 py-1"
+                    >
+                      <span>View Findings</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDeleteIssue(issue)}
+                      className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300 hover:bg-red-950/40 px-2 py-1 rounded transition border border-red-900/40"
+                      title="Delete this report"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Delete</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -295,7 +362,20 @@ export default function MyReportsPage() {
                 ))}
               </div>
 
-              <div className="flex justify-end pt-2">
+              <div className="flex items-center justify-between pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const toDelete = selectedIssue;
+                    setSelectedIssue(null);
+                    setConfirmDeleteIssue(toDelete);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-950/40 hover:bg-red-900/60 border border-red-800/60 text-red-300 text-xs font-medium transition"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete Report</span>
+                </button>
+
                 <button
                   type="button"
                   onClick={() => setSelectedIssue(null)}
@@ -304,6 +384,60 @@ export default function MyReportsPage() {
                   Close
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {confirmDeleteIssue && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-red-900/50 p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-red-950/60 border border-red-500/40 text-red-400 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">Delete Report?</h3>
+                <p className="text-xs text-slate-400 font-mono">Ref: #{confirmDeleteIssue.id}</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Are you sure you want to permanently delete this infrastructure report for{' '}
+              <span className="font-semibold text-white capitalize">
+                {confirmDeleteIssue.issue_type} in {confirmDeleteIssue.zone.replace('_', ' ')}
+              </span>
+              ? This action cannot be undone.
+            </p>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                disabled={deletingId === confirmDeleteIssue.id}
+                onClick={() => setConfirmDeleteIssue(null)}
+                className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={deletingId === confirmDeleteIssue.id}
+                onClick={() => handleDeleteReport(confirmDeleteIssue.id)}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-xs font-medium text-white transition shadow-lg shadow-red-950/50"
+              >
+                {deletingId === confirmDeleteIssue.id ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Confirm Delete</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>

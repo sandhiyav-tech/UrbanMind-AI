@@ -610,6 +610,23 @@ export async function updateIssue(id: string, updates: Partial<Issue>): Promise<
   return merged;
 }
 
+export async function deleteIssue(id: string): Promise<boolean> {
+  const sql = getPostgresClient();
+  if (sql) {
+    try {
+      await ensurePostgresTables(sql);
+      await sql`DELETE FROM issues WHERE id = ${id};`;
+    } catch (err) {
+      console.warn('Postgres delete issue error, deleting from memory store:', err);
+    }
+  }
+
+  const store = getStore();
+  const existed = store.issues.delete(id);
+  writeCachedIssues(Array.from(store.issues.values()));
+  return existed;
+}
+
 export function isUsingPostgres(): boolean {
   return !!process.env.DATABASE_URL && process.env.DATABASE_URL.trim() !== '';
 }
